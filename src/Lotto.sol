@@ -7,17 +7,33 @@ pragma solidity ^0.8.0;
 /// @dev Provides functions to enter the lottery, pick a winner, and manage the lottery state.
 
 contract LottoContract {
-    uint256 public immutable i_entryFee;
+    /* -=-=-=-=-=    Errors   */
+    error Lotto_NotEnoughEthSent();
 
+    /* -=-=-=-=-=     State Variables   */
+    uint256 public immutable i_entryFee;
+    address payable[] private s_participants; // Array to hold participants
+
+    /* -=-=-=-=-=      Events   */
+    event Lotto_Entered(address indexed participant, uint256 amount);
+
+    /* -=-=-=-=-=    Constructor   */
     constructor(uint256 entryFee) {
         i_entryFee = entryFee;
     }
 
-    function enterLottery() public payable {}
+    /* -=-=-=-=-=      Contract Functions   */
+    function enterLottery() public payable {
+        if (msg.value < i_entryFee) {
+            revert Lotto_NotEnoughEthSent();
+        }
+        s_participants.push(payable(msg.sender));
+        emit Lotto_Entered(msg.sender, msg.value);
+    }
 
     function pickWinner() public returns (address) {}
 
-    /*
+    /* -=-=-=-=-=  
     Getter Functionsa 
     **/
 
