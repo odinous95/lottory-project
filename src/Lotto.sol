@@ -13,17 +13,22 @@ contract LottoContract {
     /* -=-=-=-=-=     State Variables   */
     uint256 public immutable i_entryFee;
     address payable[] private s_participants; // Array to hold participants
+    uint256 private s_lastTimestamp;
+    uint256 private immutable i_interval;
 
     /* -=-=-=-=-=      Events   */
     event Lotto_Entered(address indexed participant, uint256 amount);
 
     /* -=-=-=-=-=    Constructor   */
-    constructor(uint256 entryFee) {
+    constructor(uint256 entryFee, uint256 interval) {
+        interval = i_interval; // Set the interval for the lottery in seconds
+        s_lastTimestamp = block.timestamp; // Initialize the last timestamp
         i_entryFee = entryFee;
     }
 
     /* -=-=-=-=-=      Contract Functions   */
-    function enterLottery() public payable {
+    /// @notice Allows a participant to enter the lottery by sending the required entry fee.
+    function enterLottery() external payable {
         if (msg.value < i_entryFee) {
             revert Lotto_NotEnoughEthSent();
         }
@@ -31,7 +36,14 @@ contract LottoContract {
         emit Lotto_Entered(msg.sender, msg.value);
     }
 
-    function pickWinner() public returns (address) {}
+    /// @notice Picks a winner from the participants if the lottery is ready.
+    function pickWinner() external view returns (address) {
+        if (block.timestamp - s_lastTimestamp < i_interval) {
+            revert("Lottery is not ready to pick a winner yet.");
+        }
+        require(s_participants.length > 0, "No participants in the lottery.");
+        return msg.sender;
+    }
 
     /* -=-=-=-=-=  
     Getter Functionsa 

@@ -7,7 +7,7 @@ contract LottoTest is Test {
     LottoContract public lotto;
 
     function setUp() public {
-        lotto = new LottoContract(0.01 ether);
+        lotto = new LottoContract(0.01 ether, 86400);
     }
 
     function testEntryFeeCheck() public view {
