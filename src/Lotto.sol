@@ -6,7 +6,7 @@ pragma solidity ^0.8.0;
 /// @notice This contract implements a lottery system where participants can enter for a chance to win a prize.
 /// @dev Provides functions to enter the lottery, pick a winner, and manage the lottery state.
 
-contract Lotto {
+contract LottoContract {
     uint256 public immutable i_entryFee;
 
     constructor(uint256 entryFee) {
