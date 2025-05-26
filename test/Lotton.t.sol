@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: SEE LICENSE IN LICENSE
 pragma solidity ^0.8.0;
+
 import {Test} from "forge-std/Test.sol";
 import {LottoContract} from "../src/Lotto.sol";
 
@@ -7,7 +8,7 @@ contract LottoTest is Test {
     LottoContract public lotto;
 
     function setUp() public {
-        lotto = new LottoContract(0.01 ether, 86400);
+        lotto = new LottoContract(0.01 ether, 86400, msg.sender); // Initialize with entry fee and interval
     }
 
     function testEntryFeeCheck() public view {

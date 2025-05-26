@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: SEE LICENSE IN LICENSE
 pragma solidity ^0.8.0;
+
 import {VRFConsumerBaseV2Plus} from "@chainlink/contracts/src/v0.8/vrf/dev/VRFConsumerBaseV2Plus.sol";
+import {VRFV2PlusClient} from "@chainlink/contracts/src/v0.8/vrf/dev/libraries/VRFV2PlusClient.sol";
 
 /// @title Lotto Contract
 /// @author Odin
@@ -11,24 +13,38 @@ contract LottoContract is VRFConsumerBaseV2Plus {
     /* -=-=-=-=-=    Errors   */
     error Lotto_NotEnoughEthSent();
 
-    /* -=-=-=-=-=     State Variables   */
+    /* -=-=-=-=-= State Variables   */
+    bytes32 private immutable i_keyHash;
+    uint256 private immutable i_subscriptionId;
     uint256 public immutable i_entryFee;
+    uint256 private immutable i_interval;
+    uint32 private immutable i_callbackGasLimit; // Gas limit for the callback function
     address payable[] private s_participants; // Array to hold participants
     uint256 private s_lastTimestamp;
-    uint256 private immutable i_interval;
+    bool public enableNativePayment = false; // Flag to enable native payment
 
-    /* -=-=-=-=-=Events   */
+    // contstants for VRF request
+    uint16 private constant REQUEST_CONFIRMATIONS = 3; // Number of confirmations before fulfilling
+    uint32 private constant NUM_WORDS = 1; // Number of random words to request
+
+    /* -=-=-=-=-= Events   */
     event Lotto_Entered(address indexed participant, uint256 amount);
 
     /* -=-=-=-=-= Constructor   */
     constructor(
         uint256 entryFee,
         uint256 interval,
-        address _vrfCoordinator
+        address _vrfCoordinator,
+        bytes32 keyhash,
+        uint256 subscriptionId,
+        uint32 callbackGasLimit
     ) VRFConsumerBaseV2Plus(_vrfCoordinator) {
         interval = i_interval; // Set the interval for the lottery in seconds
         s_lastTimestamp = block.timestamp; // Initialize the last timestamp
         i_entryFee = entryFee;
+        i_keyHash = keyhash; // Set the key hash for VRF
+        i_subscriptionId = subscriptionId; // Set the subscription ID for VRF
+        i_callbackGasLimit = callbackGasLimit; // Set the gas limit for the callback function
     }
 
     /* -=-=-=-=-=      Contract Functions   */
@@ -42,25 +58,25 @@ contract LottoContract is VRFConsumerBaseV2Plus {
     }
 
     /// @notice Picks a winner from the participants if the lottery is ready.
-    function pickWinner() external view returns (address) {
+    function pickWinner() external returns (address) {
         if (block.timestamp - s_lastTimestamp < i_interval) {
             revert("Lottery is not ready to pick a winner yet.");
         }
         // // make a request to the VRF Coordinator to get a random number
-        // requestId = s_vrfCoordinator.requestRandomWords(
-        //     VRFV2PlusClient.RandomWordsRequest({
-        //         keyHash: keyHash,
-        //         subId: s_subscriptionId,
-        //         requestConfirmations: requestConfirmations,
-        //         callbackGasLimit: callbackGasLimit,
-        //         numWords: numWords,
-        //         extraArgs: VRFV2PlusClient._argsToBytes(
-        //             VRFV2PlusClient.ExtraArgsV1({
-        //                 nativePayment: enableNativePayment
-        //             })
-        //         )
-        //     })
-        // );
+        VRFV2PlusClient.RandomWordsRequest memory request = VRFV2PlusClient
+            .RandomWordsRequest({
+                keyHash: i_keyHash,
+                subId: i_subscriptionId,
+                requestConfirmations: REQUEST_CONFIRMATIONS,
+                callbackGasLimit: i_callbackGasLimit,
+                numWords: NUM_WORDS,
+                extraArgs: VRFV2PlusClient._argsToBytes(
+                    VRFV2PlusClient.ExtraArgsV1({
+                        nativePayment: enableNativePayment
+                    })
+                )
+            });
+        uint256 requestId = s_vrfCoordinator.requestRandomWords(request);
 
         require(s_participants.length > 0, "No participants in the lottery.");
         return msg.sender;
