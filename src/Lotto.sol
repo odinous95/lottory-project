@@ -20,6 +20,7 @@ contract LottoContract is VRFConsumerBaseV2Plus {
     uint256 private immutable i_interval;
     uint32 private immutable i_callbackGasLimit; // Gas limit for the callback function
     address payable[] private s_participants; // Array to hold participants
+    address private s_last_winnder; // Address of the last winner
     uint256 private s_lastTimestamp;
     bool public enableNativePayment = false; // Flag to enable native payment
 
@@ -58,7 +59,7 @@ contract LottoContract is VRFConsumerBaseV2Plus {
     }
 
     /// @notice Picks a winner from the participants if the lottery is ready.
-    function pickWinner() external returns (address) {
+    function pickWinner() external {
         if (block.timestamp - s_lastTimestamp < i_interval) {
             revert("Lottery is not ready to pick a winner yet.");
         }
@@ -77,15 +78,20 @@ contract LottoContract is VRFConsumerBaseV2Plus {
                 )
             });
         uint256 requestId = s_vrfCoordinator.requestRandomWords(request);
-
-        require(s_participants.length > 0, "No participants in the lottery.");
-        return msg.sender;
     }
 
     function fulfillRandomWords(
         uint256 requestId,
         uint256[] calldata randomWords
-    ) internal override {}
+    ) internal override {
+        uint256 winnerIndex = randomWords[0] % s_participants.length;
+        address payable last_winner = s_participants[winnerIndex];
+        s_last_winnder = last_winner; // Store the winner address
+        (bool success, ) = last_winner.call{value: address(this).balance}(""); // Transfer the balance of the contract to the winner
+        if (!success) {
+            revert("Transfer to winner failed.");
+        }
+    }
 
     /* -=-=-=-=-=  
     Getter Functionsa 
