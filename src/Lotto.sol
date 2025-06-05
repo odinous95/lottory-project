@@ -1,6 +1,5 @@
 // SPDX-License-Identifier: SEE LICENSE IN LICENSE
 pragma solidity ^0.8.0;
-
 import {VRFConsumerBaseV2Plus} from "@chainlink/contracts/src/v0.8/vrf/dev/VRFConsumerBaseV2Plus.sol";
 import {VRFV2PlusClient} from "@chainlink/contracts/src/v0.8/vrf/dev/libraries/VRFV2PlusClient.sol";
 
@@ -13,14 +12,19 @@ contract LottoContract is VRFConsumerBaseV2Plus {
     /* -=-=-=-=-=    Errors   */
     error Lotto_NotEnoughEthSent();
     error Lotto_NotOpen();
+    error Lotto_UpkeepNeeded(
+        uint256 contractBalance,
+        uint256 participantsCount,
+        LottoState lottoState
+    );
 
-    /* -=-=-=-=-=    types   */
+    /* -=-=-=-=-= types-=-=-=-=-= -=-=-=-=-= -=-=-=-=-= -=-=-=-=-=    */
     enum LottoState {
         OPEN,
         CLOSED
     }
 
-    /* -=-=-=-=-= State Variables   */
+    /* -=-=-=-=-= State Variables-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=   */
     // immutable variables
     bytes32 private immutable i_keyHash;
     uint256 private immutable i_subscriptionId;
@@ -40,7 +44,7 @@ contract LottoContract is VRFConsumerBaseV2Plus {
     /* -=-=-=-=-= Events   */
     event Lotto_Entered(address indexed participant, uint256 amount);
 
-    /* -=-=-=-=-= Constructor   */
+    /* -=-=-=-=-= Constructor  -=-=-=-=-= -=-=-=-=-= -=-=-=-=-= -=-=-=-=-= -=-=-=-=-=   */
     constructor(
         uint256 entryFee,
         uint256 interval,
@@ -49,17 +53,22 @@ contract LottoContract is VRFConsumerBaseV2Plus {
         uint256 subscriptionId,
         uint32 callbackGasLimit
     ) VRFConsumerBaseV2Plus(_vrfCoordinator) {
-        interval = i_interval; // Set the interval for the lottery in seconds
-        s_lastTimestamp = block.timestamp; // Initialize the last timestamp
+        i_interval = interval; // Set the interval for the lottery in seconds
         i_entryFee = entryFee;
         i_keyHash = keyhash; // Set the key hash for VRF
         i_subscriptionId = subscriptionId; // Set the subscription ID for VRF
         i_callbackGasLimit = callbackGasLimit; // Set the gas limit for the callback function
         s_lottoState = LottoState.OPEN; // Initialize the lottery state to OPEN
+        s_lastTimestamp = block.timestamp; // Initialize the last timestamp
     }
 
-    /* -=-=-=-=-=Contract Functions   */
+    /* -=-=-=-=-=Contract Functions -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-= */
     /// @notice Allows a participant to enter the lottery by sending the required entry fee.
+    /**
+     * @dev Allows a participant to enter the lottery by sending the required entry fee.
+     * Reverts if the sent value is less than the entry fee or if the lottery is not open.
+     */
+
     function enterLottery() external payable {
         if (msg.value < i_entryFee) {
             revert Lotto_NotEnoughEthSent();
@@ -80,13 +89,12 @@ contract LottoContract is VRFConsumerBaseV2Plus {
      * 4.the contract has enough balance to pay the winner.
      * 5.implicity we have link balance to pay for the upkeep
      * @return upkeepNeeded indicates if upkeep is needed
-     * @return
      */
-    function checkUpKeep()
-        public
-        view
-        returns (bool upkeepNeeded, bytes memory /* performData */)
-    {
+
+    // -==-=--=-=-=-= Upkeep Functions -==-=--=-=-=-=-==-=--=-=-=-=-==-=--=-=-=-=
+    function checkUpKeep(
+        bytes memory /* checkData */
+    ) public view returns (bool upkeepNeeded, bytes memory /* performData */) {
         bool Lottery_isOpen = s_lottoState == LottoState.OPEN;
         bool timePassed = (block.timestamp - s_lastTimestamp) >= i_interval;
         bool hasParticipants = s_participants.length > 0;
@@ -96,15 +104,26 @@ contract LottoContract is VRFConsumerBaseV2Plus {
             timePassed &&
             hasParticipants &&
             hasBalance;
+        return (upkeepNeeded, "0x");
     }
 
-    /// @notice Picks a winner from the participants if the lottery is ready.
-    function pickWinner() external {
-        if (block.timestamp - s_lastTimestamp < i_interval) {
-            revert("Lottery is not ready to pick a winner yet.");
+    /// @notice Performs upkeep to pick a winner from the participants.
+    /**
+     * @dev Performs upkeep to pick a winner from the participants.
+     * Reverts if upkeep is not needed.
+     * Calls the VRF Coordinator to get a random number for selecting the winner.
+     */
+    function preformUpKeep(bytes memory /* checkData */) external {
+        (bool upkeepNeeded, ) = checkUpKeep("");
+        if (!upkeepNeeded) {
+            revert Lotto_UpkeepNeeded(
+                address(this).balance,
+                s_participants.length,
+                s_lottoState
+            );
         }
         s_lottoState = LottoState.CLOSED; // Set the lottery state to CLOSED
-        // // make a request to the VRF Coordinator to get a random number
+        // make a request to the VRF Coordinator to get a random number
         VRFV2PlusClient.RandomWordsRequest memory request = VRFV2PlusClient
             .RandomWordsRequest({
                 keyHash: i_keyHash,
@@ -118,11 +137,19 @@ contract LottoContract is VRFConsumerBaseV2Plus {
                     })
                 )
             });
-        uint256 requestId = s_vrfCoordinator.requestRandomWords(request);
+        s_vrfCoordinator.requestRandomWords(request);
     }
 
+    //--=-=-=-=-=-=-=-- VRF Callback Function
+    /// @notice Callback function to fulfill random words from the VRF Coordinator.
+    /**
+     * @dev Callback function to fulfill random words from the VRF Coordinator.
+     * Selects a winner from the participants based on the random number received.
+     * Resets the lottery state and participants for the next round.
+     * Transfers the contract balance to the winner.
+     */
     function fulfillRandomWords(
-        uint256 requestId,
+        uint256 /*requestId*/,
         uint256[] calldata randomWords
     ) internal override {
         uint256 winnerIndex = randomWords[0] % s_participants.length;
@@ -131,17 +158,13 @@ contract LottoContract is VRFConsumerBaseV2Plus {
         s_lottoState = LottoState.OPEN; // Reset the lottery state to OPEN
         s_participants = new address payable[](0); // Reset the participants array
         s_lastTimestamp = block.timestamp; // Update the last timestamp
-
         (bool success, ) = last_winner.call{value: address(this).balance}(""); // Transfer the balance of the contract to the winner
         if (!success) {
             revert("Transfer to winner failed.");
         }
     }
 
-    /* -=-=-=-=-=  
-    Getter Functionsa 
-    **/
-
+    /* -=-=-=-=-=-=-=-=-- Getter Functions -=-=-=-=-=-=-=-=---=-=-=-=-=-=-=-=--   */
     function getEntryFee() public view returns (uint256) {
         return i_entryFee;
     }
