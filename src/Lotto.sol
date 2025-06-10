@@ -18,7 +18,7 @@ contract LottoContract is VRFConsumerBaseV2Plus {
         LottoState lottoState
     );
 
-    /* -=-=-=-=-= types-=-=-=-=-= -=-=-=-=-= -=-=-=-=-= -=-=-=-=-=    */
+    /* -=-=-=-=-= types-=-=-=-=-= -=-=-=-=-= -=-=-=-=-= -=-=-=-=-= */
     enum LottoState {
         OPEN,
         CLOSED
@@ -44,7 +44,7 @@ contract LottoContract is VRFConsumerBaseV2Plus {
     /* -=-=-=-=-= Events   */
     event Lotto_Entered(address indexed participant, uint256 amount);
 
-    /* -=-=-=-=-= Constructor  -=-=-=-=-= -=-=-=-=-= -=-=-=-=-= -=-=-=-=-= -=-=-=-=-=   */
+    /* -=-=-=-=-= Constructor  -=-=-=-=-= -=-=-=-=-= -=-=-=-=-= -=-=-=-=-= -=-=-=-=-=*/
     constructor(
         uint256 entryFee,
         uint256 interval,
@@ -165,7 +165,18 @@ contract LottoContract is VRFConsumerBaseV2Plus {
     }
 
     /* -=-=-=-=-=-=-=-=-- Getter Functions -=-=-=-=-=-=-=-=---=-=-=-=-=-=-=-=--   */
+    /// @notice getter functions
+    /// @dev Provides various getter functions to retrieve contract state variables.
+
     function getEntryFee() public view returns (uint256) {
         return i_entryFee;
+    }
+
+    function getLottoState() public view returns (LottoState) {
+        return s_lottoState;
+    }
+
+    function getParticipants(uint256 index) public view returns (address) {
+        return s_participants[index];
     }
 }
