@@ -60,7 +60,21 @@ contract LottoTest is Test {
         assertEq(lotto.getParticipants(0), PARTICIPANT_1);
     }
 
-    // events testing
+    // test that the contract reverts when trying to enter the lottery when it is not open
+    function testLottoRevertsWhenNotOpen() public {
+        // Arrange
+        vm.prank(PARTICIPANT_1); // Participant tries to enter the lottery
+        lotto.enterLottery{value: entryFee}(); // Participant enters the lottery
+        vm.warp(block.timestamp + interval + 1); // Move time forward to trigger upkeep
+        vm.roll(block.number + 1); // Move to the next block
+        lotto.preformUpKeep(""); // This will change the state to CLOSED
+        // Act and Assert
+        vm.expectRevert(LottoContract.Lotto_NotOpen.selector);
+        vm.prank(PARTICIPANT_1); // Participant tries to enter the lottery again
+        lotto.enterLottery{value: entryFee}();
+    }
+
+    // events testing --=-=-=-=-=-=--=-=-=-=
     // Test that the Lotto_Entered event is emitted when a participant enters the lottery
     function testEnteringLottoEventEmit() public {
         // Arrange

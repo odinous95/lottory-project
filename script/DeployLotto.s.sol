@@ -4,6 +4,7 @@ pragma solidity ^0.8.0;
 import {Script} from "forge-std/Script.sol";
 import {LottoContract} from "../src/Lotto.sol";
 import {HelperConfig} from "./HelperConfig.s.sol";
+import {InteractionsChainLink} from "./interactions.s.sol";
 
 contract DeployLotto is Script {
     function run() external {}
@@ -12,7 +13,16 @@ contract DeployLotto is Script {
         HelperConfig config = new HelperConfig();
         HelperConfig.NetWorkConfig memory networkConfig = config
             .getConfigByChainId(block.chainid);
-
+        if (networkConfig.subscriptionId == 0) {
+            // If subscriptionId is 0, it means we are on a local network or the
+            InteractionsChainLink interactionsChainLink = new InteractionsChainLink();
+            (
+                networkConfig.subscriptionId,
+                networkConfig._vrfCoordinator
+            ) = interactionsChainLink.createSubscription(
+                networkConfig._vrfCoordinator
+            );
+        }
         vm.startBroadcast();
         LottoContract lotto = new LottoContract(
             networkConfig.entryFee,
