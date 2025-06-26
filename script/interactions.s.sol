@@ -2,9 +2,10 @@
 pragma solidity ^0.8.0;
 import {Script} from "forge-std/Script.sol";
 import {console} from "forge-std/console.sol";
-import {HelperConfig, ContantVars} from "./HelperConfig.s.sol";
+import {HelperConfig, ConstantVars} from "./HelperConfig.s.sol";
 import {VRFCoordinatorV2_5Mock} from "chainlink-brownie-contracts/contracts/src/v0.8/vrf/mocks/VRFCoordinatorV2_5Mock.sol";
 import {LinkToken} from "test/mocks/LinkToken.sol";
+import {DevOpsTools} from "lib/foundry-devops/src/DevOpsTools.sol";
 
 contract InteractionsChainLink is Script {
     function run() public {
@@ -37,7 +38,7 @@ contract InteractionsChainLink is Script {
 }
 
 // fund the Chainlink VRF subscription
-contract FundSubscription is Script, ContantVars {
+contract FundSubscription is Script, ConstantVars {
     uint256 public constant FUND_AMOUNT = 3 ether; // Amount to fund the subscription
 
     function run() public {
@@ -81,5 +82,44 @@ contract FundSubscription is Script, ContantVars {
             );
             vm.stopBroadcast();
         }
+    }
+}
+
+contract AddConsumer is Script {
+    function addCosumerUsingConfig(address mostRecentLotto) public {
+        HelperConfig config = new HelperConfig();
+        HelperConfig.NetWorkConfig memory networkConfig = config
+            .getConfigByChainId(block.chainid);
+        address vrfCoordinator = networkConfig._vrfCoordinator;
+        uint256 subId = networkConfig.subscriptionId;
+        addConsumer(mostRecentLotto, vrfCoordinator, subId);
+    }
+
+    function addConsumer(
+        address contractToAdd,
+        address vrfCoordinator,
+        uint256 subId
+    ) public {
+        console.log(
+            "Adding consumer %s to subscription ID  on VRF Coordinator: %s",
+            contractToAdd,
+            subId,
+            vrfCoordinator
+        );
+        vm.startBroadcast();
+        VRFCoordinatorV2_5Mock(vrfCoordinator).addConsumer(
+            subId,
+            contractToAdd
+        );
+        vm.stopBroadcast();
+    }
+
+    function run() external {
+        address mostRecentLotto = DevOpsTools.get_most_recent_deployment(
+            "LottoContract",
+            block.chainid
+        );
+        console.log("Most recent Lotto contract address:", mostRecentLotto);
+        addCosumerUsingConfig(mostRecentLotto);
     }
 }

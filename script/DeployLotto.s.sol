@@ -4,12 +4,14 @@ pragma solidity ^0.8.0;
 import {Script} from "forge-std/Script.sol";
 import {LottoContract} from "../src/Lotto.sol";
 import {HelperConfig} from "./HelperConfig.s.sol";
-import {InteractionsChainLink} from "./interactions.s.sol";
+import {InteractionsChainLink, FundSubscription, AddConsumer} from "./interactions.s.sol";
 
 contract DeployLotto is Script {
-    function run() external {}
+    function run() public {
+        deployContract();
+    }
 
-    function deployContract() external returns (LottoContract, HelperConfig) {
+    function deployContract() public returns (LottoContract, HelperConfig) {
         HelperConfig config = new HelperConfig();
         HelperConfig.NetWorkConfig memory networkConfig = config
             .getConfigByChainId(block.chainid);
@@ -22,6 +24,14 @@ contract DeployLotto is Script {
             ) = interactionsChainLink.createSubscription(
                 networkConfig._vrfCoordinator
             );
+
+            // Fund the subscription
+            FundSubscription fundSubscription = new FundSubscription();
+            fundSubscription.fundSubscription(
+                networkConfig._vrfCoordinator,
+                networkConfig.subscriptionId,
+                networkConfig.link
+            );
         }
         vm.startBroadcast();
         LottoContract lotto = new LottoContract(
@@ -33,6 +43,13 @@ contract DeployLotto is Script {
             networkConfig.callbackGasLimit
         );
         vm.stopBroadcast();
+        // add the consumer to the subscription
+        AddConsumer addConsumer = new AddConsumer();
+        addConsumer.addConsumer(
+            address(lotto),
+            networkConfig._vrfCoordinator,
+            networkConfig.subscriptionId
+        );
 
         return (lotto, config);
     }

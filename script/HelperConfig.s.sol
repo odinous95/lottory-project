@@ -4,7 +4,7 @@ import {Script} from "forge-std/Script.sol";
 import {VRFCoordinatorV2_5Mock} from "chainlink-brownie-contracts/contracts/src/v0.8/vrf/mocks/VRFCoordinatorV2_5Mock.sol";
 import {LinkToken} from "test/mocks/LinkToken.sol";
 
-abstract contract ContantVars {
+abstract contract ConstantVars {
     uint256 internal constant ENTRY_FEE = 0.01 ether;
     uint256 internal constant INTERVAL = 30; // seconds
     bytes32 internal constant KEYHASH =
@@ -22,7 +22,7 @@ abstract contract ContantVars {
     int256 public constant MOCK_WEI_PER_UNIT_LINK = 0.01 ether;
 }
 
-contract HelperConfig is ContantVars, Script {
+contract HelperConfig is ConstantVars, Script {
     error helperConfig__ChainIdNotSupported(uint256 chainId);
     struct NetWorkConfig {
         uint256 entryFee;
@@ -36,6 +36,7 @@ contract HelperConfig is ContantVars, Script {
     NetWorkConfig public activeNetworkConfig;
     mapping(uint256 chainId => NetWorkConfig) public networkConfigs;
 
+    // Constructor to initialize the network configurations
     constructor() {
         networkConfigs[ETH_SEPIOLIA_CHAIN_ID] = getSepoliaConfig();
     }
@@ -79,6 +80,7 @@ contract HelperConfig is ContantVars, Script {
         return activeNetworkConfig;
     }
 
+    // Get the configuration for Sepolia network
     function getSepoliaConfig() public pure returns (NetWorkConfig memory) {
         return
             NetWorkConfig({

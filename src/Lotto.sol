@@ -9,7 +9,7 @@ import {VRFV2PlusClient} from "@chainlink/contracts/src/v0.8/vrf/dev/libraries/V
 /// @dev Provides functions to enter the lottery, pick a winner, and manage the lottery state.
 
 contract LottoContract is VRFConsumerBaseV2Plus {
-    /* -=-=-=-=-=    Errors   */
+    /* -=-=-=-=-= Errors   */
     error Lotto_NotEnoughEthSent();
     error Lotto_NotOpen();
     error Lotto_UpkeepNeeded(
@@ -92,6 +92,7 @@ contract LottoContract is VRFConsumerBaseV2Plus {
      */
 
     // -==-=--=-=-=-= Upkeep Functions -==-=--=-=-=-=-==-=--=-=-=-=-==-=--=-=-=-=
+
     function checkUpKeep(
         bytes memory /* checkData */
     ) public view returns (bool upkeepNeeded, bytes memory /* performData */) {
@@ -113,7 +114,7 @@ contract LottoContract is VRFConsumerBaseV2Plus {
      * Reverts if upkeep is not needed.
      * Calls the VRF Coordinator to get a random number for selecting the winner.
      */
-    function preformUpKeep(bytes memory /* checkData */) external {
+    function performUpKeep(bytes memory /* checkData */) external {
         (bool upkeepNeeded, ) = checkUpKeep("");
         if (!upkeepNeeded) {
             revert Lotto_UpkeepNeeded(
@@ -168,15 +169,15 @@ contract LottoContract is VRFConsumerBaseV2Plus {
     /// @notice getter functions
     /// @dev Provides various getter functions to retrieve contract state variables.
 
-    function getEntryFee() public view returns (uint256) {
+    function getEntryFee() external view returns (uint256) {
         return i_entryFee;
     }
 
-    function getLottoState() public view returns (LottoState) {
+    function getLottoState() external view returns (LottoState) {
         return s_lottoState;
     }
 
-    function getParticipants(uint256 index) public view returns (address) {
+    function getParticipants(uint256 index) external view returns (address) {
         return s_participants[index];
     }
 }

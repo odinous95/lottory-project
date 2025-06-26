@@ -40,7 +40,7 @@ contract LottoTest is Test {
         assert(lotto.getLottoState() == LottoContract.LottoState.OPEN);
     }
 
-    // test entry lotto
+    // test entry lotto function with enough fee
     function testLottorWillRevertWithoutEnoughFee() public {
         // Arrange
         vm.prank(PARTICIPANT_1);
@@ -67,7 +67,7 @@ contract LottoTest is Test {
         lotto.enterLottery{value: entryFee}(); // Participant enters the lottery
         vm.warp(block.timestamp + interval + 1); // Move time forward to trigger upkeep
         vm.roll(block.number + 1); // Move to the next block
-        lotto.preformUpKeep(""); // This will change the state to CLOSED
+        lotto.performUpKeep(""); // This will change the state to CLOSED
         // Act and Assert
         vm.expectRevert(LottoContract.Lotto_NotOpen.selector);
         vm.prank(PARTICIPANT_1); // Participant tries to enter the lottery again
